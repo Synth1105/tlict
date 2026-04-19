@@ -1,0 +1,6 @@
+[language]
+name = "test-lang"
+
+[dict]
+path = "./dict/"
+

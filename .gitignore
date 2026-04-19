@@ -1,0 +1,21 @@
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.lang
+*.7z
+
+# Test outputs
+test-output/
+coverage/
+
