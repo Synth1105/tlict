@@ -1,6 +1,8 @@
 # tlict - Language Analysis and Compilation Tool
 
 ![Website](https://img.shields.io/website?url=https%3A%2F%2Ftlict-docs.vercel.app&up_message=https%3A%2F%2Ftlict-docs.vercel.app&style=for-the-badge&labelColor=%23393552&color=%23232136)
+![Crates.io Downloads (recent)](https://img.shields.io/crates/dr/tlict?style=for-the-badge&labelColor=%23393552&color=%23232136)
+
 
 A functional Rust crate for constructing, analyzing, and managing domain-specific languages (DSLs).
 
