@@ -19,3 +19,6 @@ Cargo.lock
 test-output/
 coverage/
 
+# Test Language
+test-lang/
+*.lang
