@@ -43,8 +43,9 @@ impl Default for SearchOptions {
 /// 
 /// ```rust,no_run
 /// use tlict::searcher::{search, SearchOptions};
-/// use tlict::language::Language;
+/// use tlict::language;
 /// 
+/// let language = language::load_from_path(std::path::Path::new("test-lang"))?;
 /// // Search with default options
 /// let results = search(&language, "example", &SearchOptions::default())?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())

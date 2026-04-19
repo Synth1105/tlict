@@ -12,10 +12,10 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use tlict::language::Language;
+//! use tlict::language;
 //! use std::path::Path;
 //!
-//! let language = Language::load_from_path(Path::new("test-lang"))?;
+//! let language = language::load_from_path(Path::new("test-lang"))?;
 //! println!("Language: {}", language.name());
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
