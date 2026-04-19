@@ -8,6 +8,7 @@
 //! - Search dictionary entries for language definitions
 //! - Manage character definitions with pronunciation markers
 //! - Support for custom fonts (OTF, TTF)
+//! - Speak command with IPA pronunciation synthesis
 //!
 //! ## Example
 //!
@@ -27,6 +28,9 @@ pub mod searcher;
 pub mod font;
 pub mod character;
 pub mod error;
+pub mod pronunciation;
+pub mod output;
 
 pub use models::{Language, LanguageConfig};
 pub use error::{TlictError, Result};
+

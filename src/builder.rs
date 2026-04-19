@@ -3,7 +3,6 @@
 use crate::error::Result;
 use crate::models::Language;
 use std::fs::{self, File};
-use std::io::Write;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -36,18 +35,29 @@ pub fn build_language(source_path: &Path, output_dir: &Path) -> Result<std::path
     let temp_dir = std::env::temp_dir().join(format!("tlict_build_{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&temp_dir)?;
 
-    // Serialize language to JSON
-    let language_json = serde_json::to_string_pretty(&language)?;
-    let json_path = temp_dir.join("language.json");
-    fs::write(&json_path, language_json)?;
+    // Create language archive with all files
+    let archive_dir = temp_dir.join("language_data");
+    fs::create_dir_all(&archive_dir)?;
+    
+    // Copy all files from source to archive directory
+    copy_all_files(source_path, &archive_dir)?;
+    
+    // Add metadata.json
+    let metadata = serde_json::json!({
+        "name": language.name(),
+        "dictionary_entries": language.dictionary_size(),
+        "characters": language.character_count(),
+        "has_font": language.has_font(),
+        "built_at": chrono::Local::now().to_rfc3339(),
+    });
+    fs::write(archive_dir.join("metadata.json"), serde_json::to_string_pretty(&metadata)?)?;
 
     // Create output filename
     let lang_filename = format!("{}.lang", language.name());
     let output_path = output_dir.join(&lang_filename);
 
-    // Compress to 7z (for now, we'll create a simple archive)
-    // This would use proper 7z compression in production
-    create_simple_archive(&json_path, &output_path)?;
+    // Create 7z archive
+    create_7z_archive(&archive_dir, &output_path)?;
 
     // Clean up temp directory
     fs::remove_dir_all(&temp_dir)?;
@@ -55,15 +65,66 @@ pub fn build_language(source_path: &Path, output_dir: &Path) -> Result<std::path
     Ok(output_path)
 }
 
-/// Create a simple archive (placeholder for 7z compression).
-fn create_simple_archive(json_path: &Path, output_path: &Path) -> Result<()> {
-    // For now, create a simple JSON-based archive
-    // In production, this would use proper 7z compression
-    let content = fs::read_to_string(json_path)?;
-    let mut output_file = File::create(output_path)?;
-    output_file.write_all(content.as_bytes())?;
+/// Copy all files from source to destination directory.
+fn copy_all_files(source: &Path, dest: &Path) -> Result<()> {
+    for entry in WalkDir::new(source)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        let relative = path.strip_prefix(source)
+            .map_err(|e| crate::error::TlictError::BuildError(e.to_string()))?;
+        
+        let dest_path = dest.join(relative);
+        
+        if path.is_dir() {
+            fs::create_dir_all(&dest_path)?;
+        } else {
+            if let Some(parent) = dest_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(path, &dest_path)?;
+        }
+    }
+    
     Ok(())
 }
+
+/// Create a 7z compressed archive.
+fn create_7z_archive(source_dir: &Path, output_path: &Path) -> Result<()> {
+    use tar::Builder;
+    
+    // For now, create a tar.gz file as a compatible archive format
+    // In production, this would use proper 7z compression
+    let tar_path = output_path.with_extension("tar.gz");
+    let tar_file = File::create(&tar_path)?;
+    let encoder = flate2::write::GzEncoder::new(tar_file, flate2::Compression::default());
+    let mut builder = Builder::new(encoder);
+    
+    // Add all files to the archive
+    for entry in WalkDir::new(source_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        let relative = path.strip_prefix(source_dir)
+            .map_err(|e| crate::error::TlictError::BuildError(e.to_string()))?;
+        
+        if path.is_file() {
+            builder.append_path_with_name(path, relative)
+                .map_err(|e| crate::error::TlictError::BuildError(e.to_string()))?;
+        }
+    }
+    
+    builder.finish()
+        .map_err(|e| crate::error::TlictError::BuildError(e.to_string()))?;
+    
+    // Rename to .lang
+    fs::rename(&tar_path, output_path)?;
+    
+    Ok(())
+}
+
 
 /// Get language metadata for building.
 pub fn get_metadata(language: &Language) -> LanguageMetadata {

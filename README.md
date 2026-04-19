@@ -4,11 +4,13 @@ A functional Rust crate for constructing, analyzing, and managing domain-specifi
 
 ## Features
 
-- **Build Languages**: Compile language definitions from source directories into compressed `.lang` files
+- **Build Languages**: Compile language definitions from source directories into compressed `.lang` files (tar.gz format)
 - **Dictionary Search**: Powerful search capabilities with regex support and multiple search strategies
 - **Character Management**: Define and manage language characters with IPA pronunciation markers
+- **Pronunciation Synthesis**: Speak/pronounce characters with detailed IPA analysis
 - **Font Support**: Handle custom fonts (OTF, TTF) for language rendering
 - **Validation**: Comprehensive validation for language directory structures
+- **Colorful Output**: Beautiful, colorful CLI output with emojis and formatting
 - **Functional Design**: Pure functional Rust implementation with minimal side effects
 
 ## Installation
@@ -30,7 +32,15 @@ tlict = "0.1"
 tlict build --input test-lang --output .
 ```
 
-This compiles the `test-lang` directory into a `test-lang.lang` file.
+This compiles the `test-lang` directory into a `test-lang.lang` file (tar.gz archive containing all files).
+
+**Output:**
+```
+🔨 Building language from: test-lang
+─────────────────────────────────────
+✓ Successfully built: test-lang.lang
+File size: 81912 bytes
+```
 
 #### Search in dictionary
 
@@ -43,18 +53,31 @@ Search options:
 - `-c, --case-sensitive`: Perform case-sensitive search
 - `-l, --limit <N>`: Limit results to N entries (default: 50)
 
+**Output:**
+```
+🔍 Searching in 'test-lang'
+─────────────────────────────
+   Query: "example"
+Found 1 results:
+
+1. example
+       A thing characteristic of its kind
+```
+
 #### Show language information
 
 ```bash
 tlict info --lang-dir test-lang
 ```
 
-Output:
+**Output:**
 ```
-Language: test-lang
-Dictionary entries: 1500
-Characters: 200
-Font available: Yes
+📖 Language Information
+─────────────────────────
+  Name test-lang
+  Dictionary entries 15
+  Characters 16
+  Font available Yes ✓
 ```
 
 #### Validate language structure
@@ -63,16 +86,18 @@ Font available: Yes
 tlict validate --path test-lang
 ```
 
-Output:
+**Output:**
 ```
-Validation Report for: test-lang
+✓ Validation Report
+─────────────────
+Directory: test-lang
 
-lang.toml: ✓
-Dictionary: ✓ (5 files)
-Characters: ✓
-Font: ✓ (1 files)
+✓ lang.toml
+✓ Dictionary (2 files)
+✓ Characters
+✓ Font (0 files)
 
-Valid: Yes ✓
+✓ Structure is valid!
 ```
 
 #### List characters
@@ -80,6 +105,42 @@ Valid: Yes ✓
 ```bash
 tlict characters --lang-dir test-lang --detailed
 ```
+
+**Output:**
+```
+🔤 Characters in 'test-lang' (16 total)
+
+1. a
+  a → /ə/
+  📝 Latin vowel
+
+2. e
+  e → /ɛ/
+  📝 Latin vowel
+```
+
+#### Speak/Pronounce a character (NEW)
+
+```bash
+tlict speak "a" --lang-dir test-lang --detailed
+```
+
+**Output:**
+```
+🔊 Pronunciation Guide
+────────────────────────
+1. a
+  a → /ə/
+  Latin vowel
+
+IPA Analysis:
+  Pronounced as: Schwa (neutral vowel)
+
+Detailed Phoneme Information:
+1. ə (vowel)
+         Schwa (neutral vowel)
+```
+
 
 ### Library Usage
 
@@ -183,7 +244,7 @@ Dictionary search operations:
 #### `builder`
 
 Language building and validation:
-- `build_language()`: Compile language to .lang file
+- `build_language()`: Compile language to .lang file (tar.gz)
 - `validate_language_dir()`: Validate directory structure
 - `get_metadata()`: Extract language metadata
 
@@ -200,6 +261,25 @@ Font management:
 - `Font`: Font representation
 - `load_font()`: Load and validate font file
 - `validate_fonts()`: Validate multiple fonts
+
+#### `pronunciation` (NEW)
+
+Pronunciation analysis:
+- `parse_ipa()`: Parse IPA notation into phonemes
+- `generate_guide()`: Create pronunciation guide
+- `describe_pronunciation()`: Generate text description
+- `Phoneme`: Detailed phoneme information
+
+#### `output` (NEW)
+
+Colorful CLI output utilities:
+- `success()`: Green success messages
+- `error()`: Red error messages
+- `warning()`: Yellow warning messages
+- `info()`: Blue info messages
+- `header()`: Formatted section headers
+- `pronunciation()`: Styled pronunciation display
+
 
 ## Examples
 

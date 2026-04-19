@@ -4,3 +4,6 @@ name = "test-lang"
 [dict]
 path = "./dict/"
 
+[font]
+path = "./font/Sono-VariableFont_MONO,wght.ttf"
+type = "ttf"
