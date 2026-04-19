@@ -1,15 +1,15 @@
 use std::error::Error;
 use std::path::PathBuf;
 use clap::{Parser, Subcommand};
-use tlict::language;
 use tlict::searcher::{self, SearchOptions};
 use tlict::builder;
 use tlict::output;
 use tlict::pronunciation;
+use tlict::archive;
 
 /// A functional language analysis and compilation tool
 #[derive(Parser, Debug)]
-#[command(version, about = "🌍 A language development and analysis tool", long_about = None)]
+#[command(version, about = "A language development and analysis tool", long_about = None)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -17,7 +17,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// 🔨 Build a language from source directory to .lang file
+    /// Build a language from source directory to .lang file
     Build {
         /// Language source directory
         #[arg(short, long)]
@@ -28,14 +28,14 @@ enum Commands {
         output: PathBuf,
     },
 
-    /// 🔍 Search for terms in language dictionary
+    /// Search for terms in language dictionary
     Search {
         /// Search term or pattern
         term: String,
 
-        /// Language directory
-        #[arg(short, long, default_value = ".")]
-        lang_dir: PathBuf,
+        /// Language archive file (.lang)
+        #[arg(short, long)]
+        lang: PathBuf,
 
         /// Use regex pattern matching
         #[arg(short = 'r', long)]
@@ -50,39 +50,39 @@ enum Commands {
         limit: Option<usize>,
     },
 
-    /// 📖 Show language information
+    /// Show language information
     Info {
-        /// Language directory
-        #[arg(short, long, default_value = ".")]
-        lang_dir: PathBuf,
+        /// Language archive file (.lang)
+        #[arg(short, long)]
+        lang: PathBuf,
     },
 
-    /// ✓ Validate language directory structure
+    /// Validate language directory structure
     Validate {
-        /// Language directory to validate
-        #[arg(short, long, default_value = ".")]
-        path: PathBuf,
+        /// Language archive file (.lang)
+        #[arg(short, long)]
+        lang: PathBuf,
     },
 
-    /// 🔤 List all characters in the language
+    /// List all characters in the language
     Characters {
-        /// Language directory
-        #[arg(short, long, default_value = ".")]
-        lang_dir: PathBuf,
+        /// Language archive file (.lang)
+        #[arg(short, long)]
+        lang: PathBuf,
 
         /// Show details for each character
         #[arg(short, long)]
         detailed: bool,
     },
 
-    /// 🔊 Speak/pronounce a character using IPA notation
+    /// Speak/pronounce a character using IPA notation
     Speak {
         /// Character symbol or IPA pattern
         symbol: String,
 
-        /// Language directory
-        #[arg(short, long, default_value = ".")]
-        lang_dir: PathBuf,
+        /// Language archive file (.lang)
+        #[arg(short, long)]
+        lang: PathBuf,
 
         /// Show detailed phoneme analysis
         #[arg(short, long)]
@@ -100,10 +100,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 std::process::exit(1);
             }
 
-            output::header(&format!("🔨 Building language from: {}", input.display()));
+            output::header(&format!("Building language from: {}", input.display()));
             match builder::build_language(&input, &output) {
                 Ok(path) => {
-                    output::success(&format!("✓ Successfully built: {}", path.display()));
+                    output::success(&format!("Successfully built: {}", path.display()));
                     output::highlight(&format!("File size: {} bytes", 
                         std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0)));
                 }
@@ -116,15 +116,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         Commands::Search {
             term,
-            lang_dir,
+            lang,
             regex,
             case_sensitive,
             limit,
         } => {
-            match language::load_from_path(&lang_dir) {
-                Ok(lang) => {
-                    output::header(&format!("🔍 Searching in '{}'", lang.name()));
-                    output::highlight(&format!("   Query: \"{}\"", term));
+            match archive::load_from_lang_file(&lang) {
+                Ok(language) => {
+                    output::header(&format!("Searching in '{}'", language.name()));
+                    output::highlight(&format!("Query: \"{}\"", term));
                     
                     let options = SearchOptions {
                         case_insensitive: !case_sensitive,
@@ -132,15 +132,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                         limit,
                     };
 
-                    match searcher::search(&lang, &term, &options) {
+                    match searcher::search(&language, &term, &options) {
                         Ok(results) => {
                             if results.is_empty() {
                                 output::warning(&format!("No results found for: {}", term));
                             } else {
-                                output::section(&format!("Found {} results:\n", results.len()));
+                                output::section(&format!("Found {} results", results.len()));
+                                println!();
                                 for (idx, entry) in results.iter().enumerate() {
                                     output::list_item(idx + 1, &format!("{}", entry.word));
-                                    println!("       {}", entry.definition);
+                                    println!("    {}", entry.definition);
                                 }
                             }
                         }
@@ -157,14 +158,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        Commands::Info { lang_dir } => {
-            match language::load_from_path(&lang_dir) {
-                Ok(lang) => {
-                    output::header(&format!("📖 Language Information"));
-                    output::pair("Name", lang.name());
-                    output::pair("Dictionary entries", &lang.dictionary_size().to_string());
-                    output::pair("Characters", &lang.character_count().to_string());
-                    output::pair("Font available", if lang.has_font() { "Yes ✓" } else { "No" });
+        Commands::Info { lang } => {
+            match archive::load_from_lang_file(&lang) {
+                Ok(language) => {
+                    output::header("Language Information");
+                    output::pair("Name", language.name());
+                    output::pair("Dictionary entries", &language.dictionary_size().to_string());
+                    output::pair("Characters", &language.character_count().to_string());
+                    output::pair("Font available", if language.has_font() { "Yes" } else { "No" });
                 }
                 Err(e) => {
                     output::error(&format!("Failed to load language: {}", e));
@@ -173,75 +174,44 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        Commands::Validate { path } => {
-            match builder::validate_language_dir(&path) {
-                Ok(report) => {
-                    output::header(&format!("✓ Validation Report"));
-                    output::highlight(&format!("Directory: {}", path.display()));
-                    
+        Commands::Validate { lang } => {
+            match archive::load_from_lang_file(&lang) {
+                Ok(_language) => {
+                    output::header("Validation Report");
                     println!();
-                    if report.has_lang_toml {
-                        output::checkmark("lang.toml");
-                    } else {
-                        output::cross("lang.toml");
-                    }
-                    
-                    if report.has_dict {
-                        output::checkmark(&format!("Dictionary ({} files)", report.dict_files));
-                    } else {
-                        output::cross("Dictionary");
-                    }
-                    
-                    if report.has_chars {
-                        output::checkmark("Characters");
-                    } else {
-                        output::cross("Characters");
-                    }
-                    
-                    if report.has_font {
-                        output::checkmark(&format!("Font ({} files)", report.font_files));
-                    } else {
-                        output::highlight("(Font - optional)");
-                    }
-                    
-                    println!();
-                    if report.is_valid {
-                        output::success("✓ Structure is valid!");
-                    } else {
-                        output::error("Structure is invalid");
-                        std::process::exit(1);
-                    }
+                    output::checkmark("Language archive is valid");
                 }
                 Err(e) => {
-                    output::error(&format!("Validation error: {}", e));
+                    output::error(&format!("Validation failed: {}", e));
                     std::process::exit(1);
                 }
             }
         }
 
         Commands::Characters {
-            lang_dir,
+            lang,
             detailed,
         } => {
-            match language::load_from_path(&lang_dir) {
-                Ok(lang) => {
-                    if lang.character_count() == 0 {
+            match archive::load_from_lang_file(&lang) {
+                Ok(language) => {
+                    if language.character_count() == 0 {
                         output::warning("No characters defined for this language");
                         return Ok(());
                     }
 
-                    output::header(&format!("🔤 Characters in '{}' ({} total)", 
-                        lang.name(), lang.character_count()));
+                    output::header(&format!("Characters in '{}' ({} total)", 
+                        language.name(), language.character_count()));
+                    println!();
                     
-                    for (idx, char) in lang.characters.iter().enumerate() {
+                    for (idx, char) in language.characters.iter().enumerate() {
                         output::list_item(idx + 1, &char.symbol);
                         output::pronunciation(&char.symbol, &char.pronunciation);
                         if detailed {
                             if let Some(desc) = &char.description {
-                                println!("       📝 {}", desc);
+                                println!("    {}", desc);
                             }
                         }
-                        if idx < lang.character_count() - 1 {
+                        if idx < language.character_count() - 1 {
                             println!();
                         }
                     }
@@ -255,15 +225,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         Commands::Speak {
             symbol,
-            lang_dir,
+            lang,
             detailed,
         } => {
-            match language::load_from_path(&lang_dir) {
-                Ok(lang) => {
-                    output::header(&format!("🔊 Pronunciation Guide"));
+            match archive::load_from_lang_file(&lang) {
+                Ok(language) => {
+                    output::header("Pronunciation Guide");
+                    println!();
                     
                     // Try to find the character
-                    let found_char = lang.characters
+                    let found_char = language.characters
                         .iter()
                         .find(|c| c.symbol == symbol);
                     
@@ -272,7 +243,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         output::pronunciation(&character.symbol, &character.pronunciation);
                         
                         if let Some(desc) = &character.description {
-                            println!("  {}", desc);
+                            println!("    {}", desc);
                         }
                         
                         println!();
@@ -288,15 +259,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                                     output::list_item(idx + 1, &format!("{} ({})", 
                                         phoneme.symbol, 
                                         format!("{:?}", phoneme.phoneme_type).to_lowercase()));
-                                    println!("         {}", phoneme.description);
+                                    println!("      {}", phoneme.description);
                                 }
                             }
                         }
                     } else {
-                        output::warning(&format!("Character '{}' not found in language '{}'", symbol, lang.name()));
+                        output::warning(&format!("Character '{}' not found in language '{}'", symbol, language.name()));
                         
                         // Try to find similar characters
-                        let similar: Vec<_> = lang.characters
+                        let similar: Vec<_> = language.characters
                             .iter()
                             .filter(|c| c.symbol.contains(&symbol) || symbol.contains(&c.symbol))
                             .collect();

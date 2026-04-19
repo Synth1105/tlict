@@ -30,7 +30,9 @@ pub mod character;
 pub mod error;
 pub mod pronunciation;
 pub mod output;
+pub mod archive;
 
 pub use models::{Language, LanguageConfig};
 pub use error::{TlictError, Result};
+
 
