@@ -9,8 +9,8 @@ A functional Rust crate for constructing, analyzing, and managing domain-specifi
 - **Character Management**: Define and manage language characters with IPA pronunciation markers
 - **Pronunciation Synthesis**: Speak/pronounce characters with detailed IPA analysis
 - **Font Support**: Handle custom fonts (OTF, TTF) for language rendering
-- **Validation**: Comprehensive validation for language directory structures
-- **Colorful Output**: Beautiful, colorful CLI output with emojis and formatting
+- **Validation**: Comprehensive validation for language archive structures
+- **Colorful Output**: Beautiful, colorful CLI output with formatted messages
 - **Functional Design**: Pure functional Rust implementation with minimal side effects
 
 ## Installation
@@ -36,16 +36,16 @@ This compiles the `test-lang` directory into a `test-lang.lang` file (tar.gz arc
 
 **Output:**
 ```
-🔨 Building language from: test-lang
-─────────────────────────────────────
-✓ Successfully built: test-lang.lang
+Building language from: test-lang
+────────────────────────────────────
+Successfully built: test-lang.lang
 File size: 81912 bytes
 ```
 
 #### Search in dictionary
 
 ```bash
-tlict search "example" --lang-dir test-lang
+tlict search "example" --lang test-lang.lang
 ```
 
 Search options:
@@ -55,29 +55,88 @@ Search options:
 
 **Output:**
 ```
-🔍 Searching in 'test-lang'
-─────────────────────────────
-   Query: "example"
-Found 1 results:
+Searching in 'test-lang'
+────────────────────────
+Query: "example"
+Found 1 results
 
 1. example
-       A thing characteristic of its kind
+    A thing characteristic of its kind
 ```
 
 #### Show language information
 
 ```bash
-tlict info --lang-dir test-lang
+tlict info --lang test-lang.lang
 ```
 
 **Output:**
 ```
-📖 Language Information
-─────────────────────────
+Language Information
+────────────────────
   Name test-lang
   Dictionary entries 15
   Characters 16
-  Font available Yes ✓
+  Font available Yes
+```
+
+#### Validate language archive
+
+```bash
+tlict validate --lang test-lang.lang
+```
+
+**Output:**
+```
+Validation Report
+─────────────────
+
+[OK] Language archive is valid
+```
+
+#### List characters
+
+```bash
+tlict characters --lang test-lang.lang --detailed
+```
+
+**Output:**
+```
+Characters in 'test-lang' (16 total)
+────────────────────────────────────
+
+1. a
+  a -> /ə/
+    Latin vowel
+
+2. e
+  e -> /ɛ/
+    Latin vowel
+```
+
+#### Speak/Pronounce a character
+
+```bash
+tlict speak "a" --lang test-lang.lang --detailed
+```
+
+**Output:**
+```
+Pronunciation Guide
+───────────────────
+
+1. a
+  a -> /ə/
+    Latin vowel
+
+IPA Analysis:
+  Pronounced as: Schwa (neutral vowel)
+
+Detailed Phoneme Information:
+1. ə (vowel)
+      Schwa (neutral vowel)
+```
+
 ```
 
 #### Validate language structure
@@ -119,37 +178,14 @@ tlict characters --lang-dir test-lang --detailed
   📝 Latin vowel
 ```
 
-#### Speak/Pronounce a character (NEW)
-
-```bash
-tlict speak "a" --lang-dir test-lang --detailed
-```
-
-**Output:**
-```
-🔊 Pronunciation Guide
-────────────────────────
-1. a
-  a → /ə/
-  Latin vowel
-
-IPA Analysis:
-  Pronounced as: Schwa (neutral vowel)
-
-Detailed Phoneme Information:
-1. ə (vowel)
-         Schwa (neutral vowel)
-```
-
-
 ### Library Usage
 
 ```rust
-use tlict::language;
+use tlict::archive;
 use tlict::searcher::{self, SearchOptions};
 
-// Load a language
-let lang = language::load_from_path(std::path::Path::new("test-lang"))?;
+// Load a language from .lang file
+let lang = archive::load_from_lang_file(std::path::Path::new("test-lang.lang"))?;
 
 // Search for terms
 let options = SearchOptions::default();
@@ -161,21 +197,24 @@ println!("Dictionary size: {}", lang.dictionary_size());
 println!("Characters: {}", lang.character_count());
 ```
 
-## Language Directory Structure
+## Language Archive Structure
 
-A language directory should follow this structure:
+A `.lang` file is a tar.gz archive containing the following structure:
 
 ```
-test-lang/
+test-lang.lang (tar.gz format)
 ├── lang.toml           # Language configuration
-├── dict/               # Dictionary files (JSON format)
+├── chars              # Character definitions (tab-separated)
+├── metadata.json      # Build metadata
+├── dict/              # Dictionary files (JSON format)
 │   ├── basic.json
 │   ├── advanced.json
 │   └── ...
-├── chars              # Character definitions (tab-separated)
 └── font/              # Font files (OTF/TTF)
     ├── regular.ttf
     └── bold.ttf
+```
+
 ```
 
 ### lang.toml Format
@@ -262,7 +301,7 @@ Font management:
 - `load_font()`: Load and validate font file
 - `validate_fonts()`: Validate multiple fonts
 
-#### `pronunciation` (NEW)
+#### `pronunciation`
 
 Pronunciation analysis:
 - `parse_ipa()`: Parse IPA notation into phonemes
@@ -270,15 +309,22 @@ Pronunciation analysis:
 - `describe_pronunciation()`: Generate text description
 - `Phoneme`: Detailed phoneme information
 
-#### `output` (NEW)
+#### `archive` (NEW)
+
+Language archive handling:
+- `extract_lang_file()`: Extract .lang archive to temporary directory
+- `load_from_lang_file()`: Load language directly from .lang file
+
+#### `output`
 
 Colorful CLI output utilities:
 - `success()`: Green success messages
-- `error()`: Red error messages
-- `warning()`: Yellow warning messages
+- `error()`: Red error messages with [ERROR] prefix
+- `warning()`: Yellow warning messages with [WARNING] prefix
 - `info()`: Blue info messages
 - `header()`: Formatted section headers
 - `pronunciation()`: Styled pronunciation display
+
 
 
 ## Examples
